@@ -9,7 +9,9 @@ import '../widgets/publication_card.dart';
 import 'publication_detail_screen.dart';
 
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({super.key, required this.scrollController});
+
+  final ScrollController scrollController;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -26,6 +28,7 @@ class _SearchScreenState extends State<SearchScreen> {
   ];
 
   final _queryController = TextEditingController();
+  var _visibleCount = 15;
 
   @override
   void dispose() {
@@ -41,7 +44,20 @@ class _SearchScreenState extends State<SearchScreen> {
 
     _queryController.text = query;
     FocusManager.instance.primaryFocus?.unfocus();
+
+    setState(() {
+      _visibleCount = 15;
+    });
+
     context.read<ResearchController>().search(query);
+
+    if (widget.scrollController.hasClients) {
+      widget.scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
   }
 
   void _openPublication(Publication publication) {
@@ -57,11 +73,15 @@ class _SearchScreenState extends State<SearchScreen> {
     final controller = context.watch<ResearchController>();
     final analysis = controller.analysis;
 
+    final allPublications = analysis?.publications ?? <Publication>[];
+    final shownPublications = allPublications.take(_visibleCount).toList();
+
     return Column(
       children: [
         if (controller.isLoading) const LinearProgressIndicator(),
         Expanded(
           child: ListView(
+            controller: widget.scrollController,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
               _SearchPanel(
@@ -91,15 +111,45 @@ class _SearchScreenState extends State<SearchScreen> {
                 _ResultHeader(
                   topic: analysis.topic,
                   total: analysis.totalPublications,
-                  shown: analysis.publications.length,
+                  shown: shownPublications.length,
                 ),
                 const SizedBox(height: 12),
-                for (final publication in analysis.publications) ...[
+                for (final publication in shownPublications) ...[
                   PublicationCard(
                     publication: publication,
                     onTap: () => _openPublication(publication),
                   ),
                   const SizedBox(height: 12),
+                ],
+                if (_visibleCount < allPublications.length) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _visibleCount = (_visibleCount + 15).clamp(
+                            0,
+                            allPublications.length,
+                          );
+                        });
+                      },
+                      icon: const Icon(Icons.expand_more_rounded),
+                      label: Text(
+                        'Load More (${allPublications.length - _visibleCount} remaining)',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                 ],
               ],
             ],
@@ -156,17 +206,38 @@ class _SearchPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final topic in suggestedTopics)
-                  ActionChip(
-                    avatar: const Icon(Icons.tag, size: 16),
-                    label: Text(topic),
-                    onPressed: isLoading ? null : () => onSubmit(topic),
-                  ),
-              ],
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < suggestedTopics.length; i++) ...[
+                    ActionChip(
+                      avatar: const Icon(Icons.tag, size: 13),
+                      label: Text(
+                        suggestedTopics[i],
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      visualDensity: const VisualDensity(
+                        horizontal: -2,
+                        vertical: -3,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      onPressed: isLoading
+                          ? null
+                          : () => onSubmit(suggestedTopics[i]),
+                    ),
+                    if (i < suggestedTopics.length - 1)
+                      const SizedBox(width: 8),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -190,38 +261,41 @@ class _ResultHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                topic,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-              ),
-              Text(
-                '${formatCount(total)} matching articles',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  topic,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
                 ),
-              ),
-            ],
+                Text(
+                  '${formatCount(total)} database results',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-        Text(
-          'Showing $shown',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(
-            color: colorScheme.primary,
-            fontWeight: FontWeight.w700,
+          Text(
+            'Showing $shown',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
