@@ -61,3 +61,5 @@ flutter build apk --debug
 - Works endpoint: https://developers.openalex.org/api-reference/works/list-works
 - Search guide: https://developers.openalex.org/guides/searching
 - Grouping guide: https://developers.openalex.org/guides/grouping
+
+Kodus check for using AI check, automation of test project
