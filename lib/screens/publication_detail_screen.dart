@@ -4,10 +4,18 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/publication.dart';
 import '../utils/formatters.dart';
 
-class PublicationDetailScreen extends StatelessWidget {
+class PublicationDetailScreen extends StatefulWidget {
   const PublicationDetailScreen({super.key, required this.publication});
 
   final Publication publication;
+
+  @override
+  State<PublicationDetailScreen> createState() => _PublicationDetailScreenState();
+}
+
+class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
+  bool _showAllAuthors = false;
+  bool _showAllAbstract = false;
 
   Future<void> _openUrl(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
@@ -25,9 +33,26 @@ class PublicationDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final abstractText = publication.abstractText;
-    final doiUrl = publication.doiUrl;
-    final openAlexUrl = publication.id;
+    
+    // Clean abstract text from multiple whitespaces and newlines
+    final rawAbstract = widget.publication.abstractText;
+    final abstractText = rawAbstract != null
+        ? rawAbstract.replaceAll(RegExp(r'[\s\u00A0\u2000-\u200D\u202F\u205F\u3000]+'), ' ').trim()
+        : '';
+        
+    final doiUrl = widget.publication.doiUrl;
+    final openAlexUrl = widget.publication.id;
+
+    final allAuthors = widget.publication.authors;
+    final hasManyAuthors = allAuthors.length > 5;
+    final visibleAuthors = (_showAllAuthors || !hasManyAuthors)
+        ? allAuthors
+        : allAuthors.take(5).toList();
+
+    final hasLongAbstract = abstractText.length > 500;
+    final displayAbstract = (_showAllAbstract || !hasLongAbstract)
+        ? abstractText
+        : '${abstractText.substring(0, 500).trim()}...';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Publication Details')),
@@ -35,7 +60,7 @@ class PublicationDetailScreen extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           Text(
-            publication.title,
+            widget.publication.title,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w800,
               height: 1.15,
@@ -48,52 +73,124 @@ class PublicationDetailScreen extends StatelessWidget {
             children: [
               _DetailPill(
                 icon: Icons.event_outlined,
-                label: publication.yearLabel,
+                label: widget.publication.yearLabel,
               ),
               _DetailPill(
                 icon: Icons.format_quote_outlined,
-                label: '${formatCount(publication.citationCount)} citations',
+                label: '${formatCount(widget.publication.citationCount)} citations',
               ),
               _DetailPill(
                 icon: Icons.menu_book_outlined,
-                label: publication.journalName,
+                label: widget.publication.journalName,
               ),
             ],
           ),
           const SizedBox(height: 20),
           _Section(
             title: 'Authors',
-            child: publication.authors.isEmpty
+            child: allAuthors.isEmpty
                 ? Text(
                     'Unknown authors',
                     style: TextStyle(color: colorScheme.onSurfaceVariant),
                   )
-                : Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final author in publication.authors)
-                        Chip(
-                          avatar: const Icon(Icons.person_outline, size: 18),
-                          label: Text(author),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final author in visibleAuthors)
+                            Chip(
+                              avatar: const Icon(Icons.person_outline, size: 16),
+                              label: Text(author),
+                              visualDensity: const VisualDensity(
+                                horizontal: -2,
+                                vertical: -3,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                            ),
+                        ],
+                      ),
+                      if (hasManyAuthors) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAllAuthors = !_showAllAuthors;
+                            });
+                          },
+                          icon: Icon(
+                            _showAllAuthors
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _showAllAuthors
+                                ? 'Show less'
+                                : 'Show more (+${allAuthors.length - 5} authors)',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
                         ),
+                      ],
                     ],
                   ),
           ),
           const SizedBox(height: 18),
           _Section(
             title: 'Abstract',
-            child: Text(
-              abstractText == null || abstractText.isEmpty
-                  ? 'Abstract not available from OpenAlex.'
-                  : abstractText,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                height: 1.45,
-                color: abstractText == null || abstractText.isEmpty
-                    ? colorScheme.onSurfaceVariant
-                    : null,
-              ),
-            ),
+            child: abstractText.isEmpty
+                ? Text(
+                    'Abstract not available from OpenAlex.',
+                    style: TextStyle(color: colorScheme.onSurfaceVariant),
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                       Text(
+                        displayAbstract,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          height: 1.5,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (hasLongAbstract) ...[
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _showAllAbstract = !_showAllAbstract;
+                            });
+                          },
+                          icon: Icon(
+                            _showAllAbstract
+                                ? Icons.expand_less_rounded
+                                : Icons.expand_more_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _showAllAbstract ? 'Show less' : 'Show more',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
           ),
           const SizedBox(height: 18),
           _Section(
@@ -104,7 +201,7 @@ class PublicationDetailScreen extends StatelessWidget {
                   _LinkTile(
                     icon: Icons.link,
                     title: 'DOI',
-                    subtitle: publication.doi ?? doiUrl,
+                    subtitle: widget.publication.doi ?? doiUrl,
                     onTap: () => _openUrl(context, doiUrl),
                   ),
                 if (openAlexUrl.startsWith('http'))
@@ -114,12 +211,12 @@ class PublicationDetailScreen extends StatelessWidget {
                     subtitle: openAlexUrl,
                     onTap: () => _openUrl(context, openAlexUrl),
                   ),
-                if (publication.landingPageUrl != null)
+                if (widget.publication.landingPageUrl != null)
                   _LinkTile(
                     icon: Icons.article_outlined,
                     title: 'Publisher page',
-                    subtitle: publication.landingPageUrl!,
-                    onTap: () => _openUrl(context, publication.landingPageUrl!),
+                    subtitle: widget.publication.landingPageUrl!,
+                    onTap: () => _openUrl(context, widget.publication.landingPageUrl!),
                   ),
               ],
             ),

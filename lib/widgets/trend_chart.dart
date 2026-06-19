@@ -31,22 +31,38 @@ class TrendChart extends StatelessWidget {
           alignment: BarChartAlignment.spaceBetween,
           maxY: maxCount == 0 ? 1 : maxCount * 1.15,
           gridData: FlGridData(
+            show: true,
             drawVerticalLine: false,
-            getDrawingHorizontalLine: (value) =>
-                FlLine(color: colorScheme.outlineVariant, strokeWidth: 1),
+            getDrawingHorizontalLine: (value) => FlLine(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.35),
+              strokeWidth: 1,
+              dashArray: [4, 4],
+            ),
           ),
           borderData: FlBorderData(show: false),
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => colorScheme.inverseSurface,
+              getTooltipColor: (_) => colorScheme.inverseSurface.withValues(alpha: 0.95),
+              tooltipPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
                 final point = points[group.x.toInt()];
                 return BarTooltipItem(
-                  '${point.name}\n${formatCount(point.count)} publications',
+                  'Year: ${point.name}\n',
                   TextStyle(
-                    color: colorScheme.onInverseSurface,
-                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onInverseSurface.withValues(alpha: 0.7),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
                   ),
+                  children: [
+                    TextSpan(
+                      text: '${formatCount(point.count)} papers',
+                      style: TextStyle(
+                        color: colorScheme.onInverseSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -61,15 +77,20 @@ class TrendChart extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 44,
+                reservedSize: 48,
                 getTitlesWidget: (value, meta) {
-                  if (value == 0) {
+                  if (value == 0 || (value - meta.max).abs() < 1e-3) {
                     return const SizedBox.shrink();
                   }
-                  return Text(
-                    formatCompactCount(value),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 8,
+                    child: Text(
+                      formatCompactCount(value),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   );
                 },
@@ -78,7 +99,7 @@ class TrendChart extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 34,
+                reservedSize: 32,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
                   if (index < 0 || index >= points.length) {
@@ -87,13 +108,15 @@ class TrendChart extends StatelessWidget {
                   if (index % interval != 0 && index != points.length - 1) {
                     return const SizedBox.shrink();
                   }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
+                  return SideTitleWidget(
+                    meta: meta,
+                    space: 8,
                     child: Text(
                       points[index].name,
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                   );
                 },
@@ -107,10 +130,18 @@ class TrendChart extends StatelessWidget {
                 barRods: [
                   BarChartRodData(
                     toY: points[i].count.toDouble(),
-                    width: 10,
-                    color: colorScheme.primary,
+                    width: 12,
+                    gradient: LinearGradient(
+                      colors: [
+                        colorScheme.primary,
+                        colorScheme.primary.withValues(alpha: 0.7),
+                        colorScheme.secondary.withValues(alpha: 0.8),
+                      ],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
                     borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(4),
+                      top: Radius.circular(6),
                     ),
                   ),
                 ],
