@@ -18,22 +18,46 @@ class SearchScreen extends StatefulWidget {
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  static const _suggestedTopics = [
-    'Artificial Intelligence',
-    'Software Engineering',
-    'Data Science',
-    'Cybersecurity',
-    'Internet of Things',
-    'Blockchain',
-  ];
-
   final _queryController = TextEditingController();
-  var _visibleCount = 15;
+  var _visibleCount = 20;
+
+  List<String> _suggestedTopics = [];
+  bool _isLoadingSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSuggestions();
+  }
 
   @override
   void dispose() {
     _queryController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadSuggestions() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingSuggestions = true;
+    });
+
+    try {
+      final service = context.read<ResearchController>().service;
+      final fetched = await service.fetchSubfields();
+      if (mounted) {
+        setState(() {
+          _suggestedTopics = fetched;
+          _isLoadingSuggestions = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoadingSuggestions = false;
+        });
+      }
+    }
   }
 
   void _submitSearch(String topic) {
@@ -46,7 +70,7 @@ class _SearchScreenState extends State<SearchScreen> {
     FocusManager.instance.primaryFocus?.unfocus();
 
     setState(() {
-      _visibleCount = 15;
+      _visibleCount = 20;
     });
 
     context.read<ResearchController>().search(query);
@@ -79,18 +103,21 @@ class _SearchScreenState extends State<SearchScreen> {
     return Column(
       children: [
         if (controller.isLoading) const LinearProgressIndicator(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: _SearchPanel(
+            queryController: _queryController,
+            suggestedTopics: _suggestedTopics,
+            isLoading: controller.isLoading,
+            isLoadingSuggestions: _isLoadingSuggestions,
+            onSubmit: _submitSearch,
+          ),
+        ),
         Expanded(
           child: ListView(
             controller: widget.scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
             children: [
-              _SearchPanel(
-                queryController: _queryController,
-                suggestedTopics: _suggestedTopics,
-                isLoading: controller.isLoading,
-                onSubmit: _submitSearch,
-              ),
-              const SizedBox(height: 18),
               if (controller.status == ResearchStatus.error)
                 _ErrorPanel(
                   message: controller.errorMessage ?? 'Unable to load data.',
@@ -127,16 +154,16 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: OutlinedButton.icon(
                       onPressed: () {
                         setState(() {
-                          _visibleCount = (_visibleCount + 15).clamp(
+                          _visibleCount = (_visibleCount + 20).clamp(
                             0,
                             allPublications.length,
                           );
                         });
                       },
                       icon: const Icon(Icons.expand_more_rounded),
-                      label: Text(
-                        'Load More (${allPublications.length - _visibleCount} remaining)',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      label: const Text(
+                        'Load More',
+                        style: TextStyle(fontWeight: FontWeight.bold),
                       ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(
@@ -165,12 +192,14 @@ class _SearchPanel extends StatelessWidget {
     required this.queryController,
     required this.suggestedTopics,
     required this.isLoading,
+    required this.isLoadingSuggestions,
     required this.onSubmit,
   });
 
   final TextEditingController queryController;
   final List<String> suggestedTopics;
   final bool isLoading;
+  final bool isLoadingSuggestions;
   final ValueChanged<String> onSubmit;
 
   @override
@@ -206,39 +235,51 @@ class _SearchPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  for (var i = 0; i < suggestedTopics.length; i++) ...[
-                    ActionChip(
-                      avatar: const Icon(Icons.tag, size: 13),
-                      label: Text(
-                        suggestedTopics[i],
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+            if (isLoadingSuggestions)
+              const SizedBox(
+                height: 32,
+                child: Center(
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (suggestedTopics.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    for (var i = 0; i < suggestedTopics.length; i++) ...[
+                      ActionChip(
+                        avatar: const Icon(Icons.tag, size: 13),
+                        label: Text(
+                          suggestedTopics[i],
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                        visualDensity: const VisualDensity(
+                          horizontal: -2,
+                          vertical: -3,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        onPressed: isLoading
+                            ? null
+                            : () => onSubmit(suggestedTopics[i]),
                       ),
-                      visualDensity: const VisualDensity(
-                        horizontal: -2,
-                        vertical: -3,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                      onPressed: isLoading
-                          ? null
-                          : () => onSubmit(suggestedTopics[i]),
-                    ),
-                    if (i < suggestedTopics.length - 1)
-                      const SizedBox(width: 8),
+                      if (i < suggestedTopics.length - 1)
+                        const SizedBox(width: 8),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ),
@@ -281,8 +322,8 @@ class _ResultHeader extends StatelessWidget {
                 Text(
                   '${formatCount(total)} database results',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                        color: colorScheme.onSurfaceVariant,
+                      ),
                 ),
               ],
             ),
@@ -290,9 +331,9 @@ class _ResultHeader extends StatelessWidget {
           Text(
             'Showing $shown',
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -323,8 +364,8 @@ class _ErrorPanel extends StatelessWidget {
               child: Text(
                 message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onErrorContainer,
-                ),
+                      color: colorScheme.onErrorContainer,
+                    ),
               ),
             ),
             if (onRetry != null)
