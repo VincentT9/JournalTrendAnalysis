@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../models/research_analysis.dart';
 import '../services/openalex_service.dart';
@@ -9,6 +9,9 @@ class ResearchController extends ChangeNotifier {
   ResearchController(this._service);
 
   final OpenAlexService _service;
+  OpenAlexService get service => _service;
+
+  ThemeMode themeMode = ThemeMode.light;
 
   ResearchStatus status = ResearchStatus.idle;
   ResearchAnalysis? analysis;
@@ -17,6 +20,17 @@ class ResearchController extends ChangeNotifier {
 
   bool get hasAnalysis => analysis != null;
   bool get isLoading => status == ResearchStatus.loading;
+
+  void setThemeMode(ThemeMode mode) {
+    if (themeMode == mode) return;
+    themeMode = mode;
+    notifyListeners();
+  }
+
+  void updateApiKey(String? newKey) {
+    _service.apiKey = newKey;
+    notifyListeners();
+  }
 
   Future<void> search(String topic) async {
     final normalizedTopic = topic.trim();

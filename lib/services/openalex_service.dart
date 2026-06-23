@@ -19,7 +19,7 @@ class OpenAlexService {
       'primary_location,authorships,abstract_inverted_index,ids';
 
   final http.Client _client;
-  final String? apiKey;
+  String? apiKey;
 
   Future<ResearchAnalysis> analyzeTopic(String topic) async {
     final normalizedTopic = topic.trim();
@@ -28,7 +28,7 @@ class OpenAlexService {
     }
 
     final responses = await Future.wait([
-      _fetchWorks(normalizedTopic, perPage: 50),
+      _fetchWorks(normalizedTopic, perPage: 100),
       _fetchWorks(normalizedTopic, perPage: 10, sort: 'cited_by_count:desc'),
       _fetchGroups(normalizedTopic, 'publication_year', perPage: 200),
       _fetchGroups(normalizedTopic, 'primary_location.source.id', perPage: 10),
@@ -50,6 +50,24 @@ class OpenAlexService {
       topJournals: topJournals,
       topAuthors: topAuthors,
     );
+  }
+
+  Future<List<String>> fetchSubfields() async {
+    final params = <String, String>{
+      'per_page': '30',
+    };
+    try {
+      final json = await _getJson(Uri.https(_host, '/subfields', params));
+      final results = json['results'];
+      if (results is! List) return [];
+      return results
+          .whereType<Map>()
+          .map((item) => item['display_name']?.toString() ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Future<_WorksResponse> _fetchWorks(

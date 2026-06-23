@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../state/research_controller.dart';
 import 'dashboard_screen.dart';
+import 'profile_screen.dart';
 import 'search_screen.dart';
 import 'trend_analysis_screen.dart';
 
@@ -19,6 +20,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final _searchScrollController = ScrollController();
   final _trendsScrollController = ScrollController();
   final _dashboardScrollController = ScrollController();
+  final _profileScrollController = ScrollController();
 
   late final List<Widget> _screens;
 
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
       SearchScreen(scrollController: _searchScrollController),
       TrendAnalysisScreen(scrollController: _trendsScrollController),
       DashboardScreen(scrollController: _dashboardScrollController),
+      ProfileScreen(scrollController: _profileScrollController),
     ];
   }
 
@@ -37,6 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchScrollController.dispose();
     _trendsScrollController.dispose();
     _dashboardScrollController.dispose();
+    _profileScrollController.dispose();
     super.dispose();
   }
 
@@ -45,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == 0) controller = _searchScrollController;
     if (index == 1) controller = _trendsScrollController;
     if (index == 2) controller = _dashboardScrollController;
+    if (index == 3) controller = _profileScrollController;
 
     if (controller != null && controller.hasClients) {
       controller.animateTo(
@@ -94,14 +99,58 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 12),
             Flexible(
-              child: Text(
-                'Journal Trend Analyzer',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.primary,
-                  fontSize: 18,
-                  letterSpacing: -0.2,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Journal Trend Analyzer',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 16,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                  if (controller.currentTopic.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.25),
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.search_rounded,
+                            size: 13,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Topic: ${controller.currentTopic}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: Theme.of(context).colorScheme.tertiary,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
@@ -190,6 +239,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(Icons.dashboard_outlined),
                   selectedIcon: Icon(Icons.dashboard),
                   label: 'Dashboard',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.person_outline_rounded),
+                  selectedIcon: Icon(Icons.person_rounded),
+                  label: 'Profile',
                 ),
               ],
             ),
