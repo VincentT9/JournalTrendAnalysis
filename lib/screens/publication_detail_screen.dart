@@ -10,7 +10,8 @@ class PublicationDetailScreen extends StatefulWidget {
   final Publication publication;
 
   @override
-  State<PublicationDetailScreen> createState() => _PublicationDetailScreenState();
+  State<PublicationDetailScreen> createState() =>
+      _PublicationDetailScreenState();
 }
 
 class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
@@ -33,13 +34,18 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    
+
     // Clean abstract text from multiple whitespaces and newlines
     final rawAbstract = widget.publication.abstractText;
     final abstractText = rawAbstract != null
-        ? rawAbstract.replaceAll(RegExp(r'[\s\u00A0\u2000-\u200D\u202F\u205F\u3000]+'), ' ').trim()
+        ? rawAbstract
+              .replaceAll(
+                RegExp(r'[\s\u00A0\u2000-\u200D\u202F\u205F\u3000]+'),
+                ' ',
+              )
+              .trim()
         : '';
-        
+
     final doiUrl = widget.publication.doiUrl;
     final openAlexUrl = widget.publication.id;
 
@@ -49,10 +55,9 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
         ? allAuthors
         : allAuthors.take(5).toList();
 
-    final hasLongAbstract = abstractText.length > 500;
-    final displayAbstract = (_showAllAbstract || !hasLongAbstract)
-        ? abstractText
-        : '${abstractText.substring(0, 500).trim()}...';
+    final truncatedAbstract = shortText(abstractText, maxLength: 500);
+    final hasLongAbstract = truncatedAbstract != abstractText;
+    final displayAbstract = _showAllAbstract ? abstractText : truncatedAbstract;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Publication Details')),
@@ -77,7 +82,8 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
               ),
               _DetailPill(
                 icon: Icons.format_quote_outlined,
-                label: '${formatCount(widget.publication.citationCount)} citations',
+                label:
+                    '${formatCount(widget.publication.citationCount)} citations',
               ),
               _DetailPill(
                 icon: Icons.menu_book_outlined,
@@ -102,7 +108,10 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
                         children: [
                           for (final author in visibleAuthors)
                             Chip(
-                              avatar: const Icon(Icons.person_outline, size: 16),
+                              avatar: const Icon(
+                                Icons.person_outline,
+                                size: 16,
+                              ),
                               label: Text(author),
                               visualDensity: const VisualDensity(
                                 horizontal: -2,
@@ -112,7 +121,9 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
                                 horizontal: 6,
                                 vertical: 2,
                               ),
-                              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                              labelPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
                             ),
                         ],
                       ),
@@ -157,7 +168,7 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                       Text(
+                      Text(
                         displayAbstract,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           height: 1.5,
@@ -216,7 +227,8 @@ class _PublicationDetailScreenState extends State<PublicationDetailScreen> {
                     icon: Icons.article_outlined,
                     title: 'Publisher page',
                     subtitle: widget.publication.landingPageUrl!,
-                    onTap: () => _openUrl(context, widget.publication.landingPageUrl!),
+                    onTap: () =>
+                        _openUrl(context, widget.publication.landingPageUrl!),
                   ),
               ],
             ),

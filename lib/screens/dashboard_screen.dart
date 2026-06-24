@@ -428,7 +428,7 @@ class _InfluentialPaperCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${paper!.journalName} • ${paper!.yearLabel}',
+                          '${paper!.journalName} — ${paper!.yearLabel}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall
