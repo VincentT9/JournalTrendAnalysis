@@ -9,7 +9,8 @@ import '../models/research_analysis.dart';
 
 class OpenAlexService {
   OpenAlexService({http.Client? client, this.apiKey})
-    : _client = client ?? http.Client();
+    : _client = client ?? http.Client(),
+      _ownsClient = client == null;
 
   static const _host = 'api.openalex.org';
   static const _worksPath = '/works';
@@ -19,7 +20,10 @@ class OpenAlexService {
       'primary_location,authorships,abstract_inverted_index,ids';
 
   final http.Client _client;
-  String? apiKey;
+
+  final bool _ownsClient;
+  final String? apiKey;
+
 
   Future<ResearchAnalysis> analyzeTopic(String topic) async {
     final normalizedTopic = topic.trim();
@@ -27,19 +31,26 @@ class OpenAlexService {
       throw const OpenAlexException('Please enter a research topic.');
     }
 
-    final responses = await Future.wait([
-      _fetchWorks(normalizedTopic, perPage: 100),
-      _fetchWorks(normalizedTopic, perPage: 10, sort: 'cited_by_count:desc'),
-      _fetchGroups(normalizedTopic, 'publication_year', perPage: 200),
-      _fetchGroups(normalizedTopic, 'primary_location.source.id', perPage: 10),
-      _fetchGroups(normalizedTopic, 'authorships.author.id', perPage: 10),
+
+    final searchResult = await _fetchWorks(normalizedTopic, perPage: 50);
+    final optionalResponses = await Future.wait([
+      _tryFetchWorks(normalizedTopic, perPage: 10, sort: 'cited_by_count:desc'),
+      _tryFetchGroups(normalizedTopic, 'publication_year', perPage: 200),
+      _tryFetchGroups(
+        normalizedTopic,
+        'primary_location.source.id',
+        perPage: 10,
+      ),
+      _tryFetchGroups(normalizedTopic, 'authorships.author.id', perPage: 10),
+
     ]);
 
-    final searchResult = responses[0] as _WorksResponse;
-    final topInfluential = responses[1] as _WorksResponse;
-    final trendByYear = _prepareTrend(responses[2] as List<OpenAlexGroup>);
-    final topJournals = responses[3] as List<OpenAlexGroup>;
-    final topAuthors = responses[4] as List<OpenAlexGroup>;
+    final topInfluential = optionalResponses[0] as _WorksResponse;
+    final trendByYear = _prepareTrend(
+      optionalResponses[1] as List<OpenAlexGroup>,
+    );
+    final topJournals = optionalResponses[2] as List<OpenAlexGroup>;
+    final topAuthors = optionalResponses[3] as List<OpenAlexGroup>;
 
     return ResearchAnalysis(
       topic: normalizedTopic,
@@ -52,21 +63,35 @@ class OpenAlexService {
     );
   }
 
-  Future<List<String>> fetchSubfields() async {
-    final params = <String, String>{
-      'per_page': '30',
-    };
+
+  void dispose() {
+    if (_ownsClient) {
+      _client.close();
+    }
+  }
+
+  Future<_WorksResponse> _tryFetchWorks(
+    String topic, {
+    required int perPage,
+    String? sort,
+  }) async {
     try {
-      final json = await _getJson(Uri.https(_host, '/subfields', params));
-      final results = json['results'];
-      if (results is! List) return [];
-      return results
-          .whereType<Map>()
-          .map((item) => item['display_name']?.toString() ?? '')
-          .where((name) => name.isNotEmpty)
-          .toList();
-    } catch (_) {
-      return [];
+      return await _fetchWorks(topic, perPage: perPage, sort: sort);
+    } on OpenAlexException {
+      return const _WorksResponse(totalCount: 0, publications: []);
+    }
+  }
+
+  Future<List<OpenAlexGroup>> _tryFetchGroups(
+    String topic,
+    String groupBy, {
+    required int perPage,
+  }) async {
+    try {
+      return await _fetchGroups(topic, groupBy, perPage: perPage);
+    } on OpenAlexException {
+      return const <OpenAlexGroup>[];
+
     }
   }
 
@@ -150,7 +175,19 @@ class OpenAlexService {
     }
 
     final body = utf8.decode(response.bodyBytes);
-    final decoded = jsonDecode(body);
+    final Object? decoded;
+    try {
+      decoded = body.trim().isEmpty ? null : jsonDecode(body);
+    } on FormatException {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw OpenAlexException(
+          'OpenAlex request failed (${response.statusCode}).',
+        );
+      }
+      throw const OpenAlexException(
+        'OpenAlex returned an invalid JSON response.',
+      );
+    }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final message = decoded is Map
