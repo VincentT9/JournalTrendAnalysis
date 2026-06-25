@@ -20,14 +20,17 @@ class OpenAlexService {
       'primary_location,authorships,abstract_inverted_index,ids';
 
   final http.Client _client;
+
   final bool _ownsClient;
   final String? apiKey;
+
 
   Future<ResearchAnalysis> analyzeTopic(String topic) async {
     final normalizedTopic = topic.trim();
     if (normalizedTopic.isEmpty) {
       throw const OpenAlexException('Please enter a research topic.');
     }
+
 
     final searchResult = await _fetchWorks(normalizedTopic, perPage: 50);
     final optionalResponses = await Future.wait([
@@ -39,6 +42,7 @@ class OpenAlexService {
         perPage: 10,
       ),
       _tryFetchGroups(normalizedTopic, 'authorships.author.id', perPage: 10),
+
     ]);
 
     final topInfluential = optionalResponses[0] as _WorksResponse;
@@ -58,6 +62,7 @@ class OpenAlexService {
       topAuthors: topAuthors,
     );
   }
+
 
   void dispose() {
     if (_ownsClient) {
@@ -86,6 +91,7 @@ class OpenAlexService {
       return await _fetchGroups(topic, groupBy, perPage: perPage);
     } on OpenAlexException {
       return const <OpenAlexGroup>[];
+
     }
   }
 
