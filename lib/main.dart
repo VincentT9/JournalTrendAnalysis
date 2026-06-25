@@ -23,8 +23,8 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = context.watch<ResearchController>();
     const seed = Color(0xFF0F766E);
+    final controller = context.watch<ResearchController>();
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -32,6 +32,7 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       themeMode: controller.themeMode,
       theme: ThemeData(
         useMaterial3: true,
+        brightness: Brightness.light,
         colorScheme: ColorScheme.fromSeed(
           seedColor: seed,
           secondary: const Color(0xFFF59E0B),
@@ -53,13 +54,13 @@ class JournalTrendAnalyzerApp extends StatelessWidget {
       ),
       darkTheme: ThemeData(
         useMaterial3: true,
+        brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: seed,
           brightness: Brightness.dark,
           secondary: const Color(0xFFF59E0B),
-          tertiary: const Color(0xFF3B82F6),
+          tertiary: const Color(0xFF2563EB),
         ),
-        scaffoldBackgroundColor: const Color(0xFF0D1312),
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
